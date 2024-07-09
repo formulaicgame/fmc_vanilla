@@ -6,9 +6,9 @@ fn main() {
     archive
         .append_dir_all("resources/client", "resources/client")
         .unwrap();
-    //archive
-    //    .append_dir_all("resources/server", "resources/server")
-    //    .unwrap();
+    archive
+        .append_dir_all("resources/server", "resources/server")
+        .unwrap();
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let compressed: Vec<u8> =

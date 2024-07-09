@@ -1,8 +1,8 @@
 use fmc::prelude::*;
 
-pub struct AssetPlugin;
-impl Plugin for AssetPlugin {
-    fn build(&self, app: &mut App) {
+pub struct BundledAssetsPlugin;
+impl Plugin for BundledAssetsPlugin {
+    fn build(&self, _app: &mut App) {
         // The server's necessary assets are included at compile time, two birds one stone.
         // 1. The assets are always available without having to fetch them from the web.
         // TODO: Mods ruin this
