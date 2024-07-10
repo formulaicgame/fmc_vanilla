@@ -279,29 +279,17 @@ fn respawn_players(
                 break chunk_position;
             }
 
-            // Find a spot that has a block with two air blocks above.
-            for (i, block_chunk) in chunk.blocks.chunks_exact(Chunk::SIZE).enumerate() {
+            // Find two consecutive air blocks to spawn in
+            for (i, block_column) in chunk.blocks.chunks_exact(Chunk::SIZE).enumerate() {
                 let mut count = 0;
-                for (j, block) in block_chunk.iter().enumerate() {
-                    //if count == 3 {
-                    if count == 2 {
+                for (j, block) in block_column.iter().enumerate() {
+                    if count == 0 && *block == air {
+                        count += 1;
+                    } else if count == 1 && *block == air {
                         let mut spawn_position =
                             chunk_position + utils::block_index_to_position(i * Chunk::SIZE + j);
-                        spawn_position.y -= 2;
+                        spawn_position.y -= 1;
                         break 'outer spawn_position;
-                    //} else if count == 0 && *block != air {
-                    } else if count == 3 && *block != air {
-                        count += 1;
-                        //match blocks.get_config(&block).friction {
-                        //    Friction::Drag(_) => continue,
-                        //    _ => count += 1,
-                        //};
-                        //} else if count == 1 && *block == air {
-                    } else if count == 0 && *block == air {
-                        count += 1;
-                    //} else if count == 2 && *block == air {
-                    } else if count == 1 && *block == air {
-                        count += 1;
                     } else {
                         count = 0;
                     }
@@ -315,7 +303,12 @@ fn respawn_players(
         net.send_one(
             *connection_id,
             messages::PlayerPosition {
-                position: spawn_position.as_dvec3(),
+                position: spawn_position.as_dvec3()
+                    + DVec3 {
+                        x: 0.5,
+                        y: 0.0,
+                        z: 0.5,
+                    },
                 velocity: DVec3::ZERO,
             },
         );

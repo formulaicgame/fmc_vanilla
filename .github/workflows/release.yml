@@ -32,9 +32,6 @@ jobs:
 
       - name: Install rust
         run: rustup install nightly && rustup target add ${{ matrix.target }}
-      #- uses: dtolnay/rust-toolchain@nightly
-      #  with:
-      #    targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
 
