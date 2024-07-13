@@ -34,9 +34,7 @@
           }
         },
         "content": {
-            "TextBox": {
-                "input": false,
-                "scrollable": true,
+            "TextContainer": {
                 "text_background_color": {
                     "Rgba": {
                         "red": 0.0,
@@ -82,12 +80,7 @@
             "alpha": 0.5
           }
         },
-        "content": {
-            "TextBox": {
-                "input": true,
-                "scrollable": false
-            } 
-        }
+        "content": "TextBox"
       }
     ]
   }
