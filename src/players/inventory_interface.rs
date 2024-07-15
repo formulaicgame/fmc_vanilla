@@ -105,7 +105,7 @@ fn initialize_interface(
             });
         });
 
-        let mut crafting_items_boxes = messages::InterfaceItemBoxUpdate::new();
+        let mut crafting_items_boxes = messages::InterfaceItemBoxUpdate::default();
         for i in 0..4 {
             crafting_items_boxes.add_empty_itembox("inventory/crafting_input", i);
         }
@@ -114,8 +114,9 @@ fn initialize_interface(
 
         net.send_one(
             *connection,
-            messages::InterfaceOpen {
-                interface_path: String::from("hotbar"),
+            messages::InterfaceVisibilityUpdate {
+                interface_path: "hotbar".to_owned(),
+                visible: true,
             },
         );
     }
@@ -127,7 +128,7 @@ fn send_server_updates(
     equipment_query: Query<(&Equipment, &ConnectionId), Changed<Equipment>>,
 ) {
     for (inventory, connection) in inventory_query.iter() {
-        let mut inventory_node = messages::InterfaceItemBoxUpdate::new();
+        let mut inventory_node = messages::InterfaceItemBoxUpdate::default();
 
         for (i, item_stack) in inventory.iter().skip(9).enumerate() {
             if let Some(item) = item_stack.item() {
@@ -146,7 +147,7 @@ fn send_server_updates(
         }
         net.send_one(*connection, inventory_node);
 
-        let mut hotbar_node = messages::InterfaceItemBoxUpdate::new();
+        let mut hotbar_node = messages::InterfaceItemBoxUpdate::default();
 
         for (i, item_stack) in inventory.iter().enumerate().take(9) {
             if let Some(item) = item_stack.item() {
@@ -172,7 +173,7 @@ fn send_server_updates(
     }
 
     for (equipment, connection) in equipment_query.iter() {
-        let mut equipment_node = messages::InterfaceItemBoxUpdate::new();
+        let mut equipment_node = messages::InterfaceItemBoxUpdate::default();
         for (item_stack, interface_path) in [
             (&equipment.helmet, "equipment/helmet"),
             (&equipment.chestplate, "equipment/chestplate"),
@@ -398,7 +399,7 @@ fn handle_crafting_input_events(
                 _ => continue,
             }
 
-            let mut update = messages::InterfaceItemBoxUpdate::new();
+            let mut update = messages::InterfaceItemBoxUpdate::default();
 
             if let Some(output) = recipes.get("crafting").get_output(&crafting_input) {
                 update.add_itembox(
@@ -464,7 +465,7 @@ fn handle_crafting_output_events(
                     continue;
                 }
 
-                let mut crafting_interface = messages::InterfaceItemBoxUpdate::new();
+                let mut crafting_interface = messages::InterfaceItemBoxUpdate::default();
 
                 for (i, item_stack) in crafting_input.iter().enumerate() {
                     if let Some(item) = item_stack.item() {

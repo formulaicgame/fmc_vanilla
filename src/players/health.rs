@@ -55,11 +55,11 @@ pub struct Health {
 }
 
 impl Health {
-    pub fn take_damage(&mut self, damage: u32) -> messages::InterfaceVisibilityUpdate {
+    pub fn take_damage(&mut self, damage: u32) -> messages::InterfaceNodeVisibilityUpdate {
         let old_hearts = self.hearts;
         self.hearts = self.hearts.saturating_sub(damage);
 
-        let mut image_update = messages::InterfaceVisibilityUpdate::default();
+        let mut image_update = messages::InterfaceNodeVisibilityUpdate::default();
         for i in self.hearts..old_hearts {
             image_update.set_hidden(format!("hotbar/health/{}", i + 1));
         }
@@ -67,11 +67,11 @@ impl Health {
         image_update
     }
 
-    pub fn heal(&mut self, healing: u32) -> messages::InterfaceVisibilityUpdate {
+    pub fn heal(&mut self, healing: u32) -> messages::InterfaceNodeVisibilityUpdate {
         let old_hearts = self.hearts;
         self.hearts = self.hearts.saturating_add(healing).min(self.max);
 
-        let mut image_update = messages::InterfaceVisibilityUpdate::default();
+        let mut image_update = messages::InterfaceNodeVisibilityUpdate::default();
         for i in old_hearts..self.hearts {
             image_update.set_visible(format!("hotbar/health/{}", i + 1));
         }
@@ -125,17 +125,13 @@ fn change_health(
 ) {
     for damage_event in damage_events.read() {
         let (mut health, connection_id) = health_query.get_mut(damage_event.entity).unwrap();
-        let interface_update = health.take_damage(damage_event.damage);
-        net.send_one(*connection_id, interface_update);
+        let mut interface_update = health.take_damage(damage_event.damage);
 
         if health.hearts == 0 {
-            net.send_one(
-                *connection_id,
-                messages::InterfaceOpen {
-                    interface_path: "death_screen".to_owned(),
-                },
-            );
+            interface_update.set_visible("death_screen".to_owned());
         }
+
+        net.send_one(*connection_id, interface_update);
     }
 
     for event in heal_events.read() {
@@ -175,10 +171,12 @@ fn death_interface(
                 entity: interface_interaction.source.entity(),
                 healing: u32::MAX,
             });
+
             net.send_one(
                 interface_interaction.source,
-                messages::InterfaceClose {
+                messages::InterfaceVisibilityUpdate {
                     interface_path: "death_screen".to_owned(),
+                    visible: true,
                 },
             );
         }

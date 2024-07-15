@@ -133,7 +133,7 @@ fn handle_interface_events(
         for event in events.read() {
             let (_, mut held_item) = player_query.get_mut(event.source.entity()).unwrap();
 
-            let mut interface_update = messages::InterfaceItemBoxUpdate::new();
+            let mut interface_update = messages::InterfaceItemBoxUpdate::default();
 
             if let messages::InterfaceInteraction::TakeItem {
                 interface_path,
@@ -237,15 +237,16 @@ fn handle_block_hits(
 
             let connection = player_query.get(player_entity).unwrap();
 
-            let mut interface_update = messages::InterfaceItemBoxUpdate::new();
-            crafting_table.build_input_interface(&mut interface_update);
-            crafting_table.build_output_interface(&recipes, &mut interface_update);
-            net.send_one(*connection, interface_update);
+            let mut itembox_update = messages::InterfaceItemBoxUpdate::default();
+            crafting_table.build_input_interface(&mut itembox_update);
+            crafting_table.build_output_interface(&recipes, &mut itembox_update);
+            net.send_one(*connection, itembox_update);
 
             net.send_one(
                 *connection,
-                messages::InterfaceOpen {
-                    interface_path: String::from("crafting_table"),
+                messages::InterfaceVisibilityUpdate {
+                    interface_path: "crafting_table".to_owned(),
+                    visible: true,
                 },
             );
         }
