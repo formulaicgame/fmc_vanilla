@@ -31,15 +31,11 @@ impl Plugin for PlayerPlugin {
             .add_plugins(hand::HandPlugin)
             .add_systems(
                 Update,
-                (
-                    remove_players,
-                    (add_players, apply_deferred).chain(),
-                    respawn_players,
-                ),
+                ((load_player_data, apply_deferred).chain(), respawn_players),
             )
             // Save player after all remaining events have been handled. Avoid dupes and other
             // unexpected behaviour.
-            .add_systems(PostUpdate, remove_players);
+            .add_systems(PostUpdate, save_player_data);
     }
 }
 
@@ -167,12 +163,12 @@ impl PlayerSave {
     }
 }
 
-fn add_players(
+fn load_player_data(
     mut commands: Commands,
     net: Res<NetworkServer>,
     database: Res<Database>,
     mut respawn_events: EventWriter<RespawnEvent>,
-    added_players: Query<(Entity, &Username, &ConnectionId), Added<Player>>,
+    added_players: Query<(Entity, &Username, &ConnectionId), Added<Username>>,
 ) {
     for (entity, username, connection) in added_players.iter() {
         let bundle = if let Some(save) = PlayerSave::load(&username, &database) {
@@ -208,7 +204,7 @@ fn add_players(
     }
 }
 
-fn remove_players(
+fn save_player_data(
     database: Res<Database>,
     mut network_events: EventReader<ServerNetworkEvent>,
     players: Query<(

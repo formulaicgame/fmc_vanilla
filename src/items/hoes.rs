@@ -2,9 +2,8 @@ use fmc::{
     blocks::{BlockId, Blocks},
     items::Items,
     models::Models,
-    players::{Camera, Player},
     prelude::*,
-    world::{BlockUpdate, WorldMap},
+    world::BlockUpdate,
 };
 
 use super::{GroundItemBundle, ItemUses, UsableItems};
@@ -43,7 +42,7 @@ struct HoeConfig {
     pub grass: BlockId,
 }
 
-pub fn use_hoe(
+fn use_hoe(
     mut commands: Commands,
     items: Res<Items>,
     models: Res<Models>,

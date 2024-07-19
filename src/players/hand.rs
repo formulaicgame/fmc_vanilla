@@ -26,7 +26,7 @@ impl Plugin for HandPlugin {
             Update,
             (
                 handle_left_clicks,
-                (handle_right_clicks).in_set(RegisterItemUse),
+                handle_right_clicks.in_set(RegisterItemUse),
                 break_blocks.after(handle_left_clicks),
             ),
         );

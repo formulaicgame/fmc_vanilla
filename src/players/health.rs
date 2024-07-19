@@ -6,7 +6,7 @@ use fmc::{
     prelude::*,
 };
 
-use fmc_networking::{messages, ConnectionId, NetworkData, NetworkServer};
+use fmc_networking::{messages, ConnectionId, NetworkData, NetworkServer, Username};
 use serde::{Deserialize, Serialize};
 
 use super::RespawnEvent;
@@ -30,7 +30,7 @@ impl Plugin for HealthPlugin {
 
 fn add_new_players(
     mut commands: Commands,
-    new_player_query: Query<Entity, Added<Player>>,
+    new_player_query: Query<Entity, Added<Username>>,
     mut registration_events: EventWriter<RegisterInterfaceProvider>,
 ) {
     for player_entity in new_player_query.iter() {

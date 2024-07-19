@@ -1,7 +1,7 @@
 use fmc::prelude::*;
 
-pub struct BundledAssetsPlugin;
-impl Plugin for BundledAssetsPlugin {
+pub struct ExtractBundledAssetsPlugin;
+impl Plugin for ExtractBundledAssetsPlugin {
     fn build(&self, _app: &mut App) {
         // The server's necessary assets are included at compile time, two birds one stone.
         // 1. The assets are always available without having to fetch them from the web.

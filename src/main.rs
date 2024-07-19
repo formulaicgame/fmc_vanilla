@@ -14,7 +14,7 @@ mod world;
 fn main() {
     App::new()
         .insert_resource(settings::Settings::load())
-        .add_plugins(assets::BundledAssetsPlugin)
+        .add_plugins(assets::ExtractBundledAssetsPlugin)
         .add_plugins(fmc::DefaultPlugins)
         //.add_plugins((FrameTimeDiagnosticsPlugin, FrameCountPlugin))
         .add_plugins(items::ItemPlugin)
