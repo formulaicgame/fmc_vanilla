@@ -14,9 +14,9 @@
         "drop": "dirt"
     },
     "sound": [
-        "server_assets/audio/grass_1.ogg",
-        "server_assets/audio/grass_2.ogg",
-        "server_assets/audio/grass_3.ogg",
-        "server_assets/audio/grass_4.ogg"
+        "grass_1.ogg",
+        "grass_2.ogg",
+        "grass_3.ogg",
+        "grass_4.ogg"
     ]
 }

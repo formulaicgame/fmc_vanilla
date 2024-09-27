@@ -1,5 +1,5 @@
-use fmc::prelude::*;
-use fmc_networking::{messages, NetworkServer};
+use fmc::{networking::Server, prelude::*};
+use fmc_protocol::messages;
 
 pub struct SkyPlugin;
 impl Plugin for SkyPlugin {
@@ -23,12 +23,9 @@ impl Default for Clock {
 // time == 600, dusk
 const DAY_LENGTH: f32 = 1200.0;
 
-fn day_night_cycle(time: Res<Time>, net: Res<NetworkServer>, mut clock: ResMut<Clock>) {
-    clock.0 += time.delta_seconds();
-    clock.0 %= DAY_LENGTH;
-
+fn day_night_cycle(time: Res<Time>, net: Res<Server>) {
     let message = messages::Time {
-        angle: clock.0 * std::f32::consts::TAU / DAY_LENGTH,
+        angle: time.elapsed_seconds() * std::f32::consts::TAU / DAY_LENGTH,
     };
     net.broadcast(message);
 }

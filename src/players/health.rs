@@ -2,11 +2,12 @@ use fmc::{
     interfaces::{
         InterfaceEventRegistration, InterfaceInteractionEvents, RegisterInterfaceProvider,
     },
+    networking::{NetworkMessage, Server},
     players::Player,
     prelude::*,
 };
 
-use fmc_networking::{messages, ConnectionId, NetworkData, NetworkServer, Username};
+use fmc_protocol::messages;
 use serde::{Deserialize, Serialize};
 
 use super::RespawnEvent;
@@ -19,7 +20,7 @@ impl Plugin for HealthPlugin {
             .add_systems(
                 Update,
                 (
-                    add_new_players,
+                    register_death_interface,
                     change_health,
                     fall_damage.before(change_health),
                     death_interface.after(InterfaceEventRegistration),
@@ -28,30 +29,34 @@ impl Plugin for HealthPlugin {
     }
 }
 
-fn add_new_players(
-    mut commands: Commands,
-    new_player_query: Query<Entity, Added<Username>>,
-    mut registration_events: EventWriter<RegisterInterfaceProvider>,
-) {
-    for player_entity in new_player_query.iter() {
-        commands
-            .entity(player_entity)
-            .insert(FallDamage(0))
-            .with_children(|parent| {
-                let death_interface_entity = parent.spawn(DeathInterface).id();
-                registration_events.send(RegisterInterfaceProvider {
-                    player_entity,
-                    node_path: String::from("death_interface"),
-                    node_entity: death_interface_entity,
-                });
-            });
+#[derive(Default, Bundle)]
+pub struct HealthBundle {
+    health: Health,
+    fall_damage: FallDamage,
+}
+
+impl HealthBundle {
+    pub fn from_health(health: Health) -> Self {
+        Self {
+            health,
+            ..default()
+        }
     }
 }
 
-#[derive(Component, Default, Serialize, Deserialize, Clone)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Health {
-    pub hearts: u32,
-    pub max: u32,
+    hearts: u32,
+    max: u32,
+}
+
+impl Default for Health {
+    fn default() -> Self {
+        Self {
+            hearts: 20,
+            max: 20,
+        }
+    }
 }
 
 impl Health {
@@ -80,29 +85,29 @@ impl Health {
     }
 }
 
-#[derive(Component)]
-pub struct FallDamage(u32);
+#[derive(Component, Default)]
+struct FallDamage(u32);
 
 #[derive(Event)]
 struct DamageEvent {
-    entity: Entity,
+    player_entity: Entity,
     damage: u32,
 }
 
 #[derive(Event)]
 struct HealEvent {
-    entity: Entity,
+    player_entity: Entity,
     healing: u32,
 }
 
 fn fall_damage(
     mut fall_damage_query: Query<(Entity, &mut FallDamage), With<Player>>,
-    mut position_events: EventReader<NetworkData<messages::PlayerPosition>>,
+    mut position_events: EventReader<NetworkMessage<messages::PlayerPosition>>,
     mut damage_events: EventWriter<DamageEvent>,
 ) {
     for position_update in position_events.read() {
-        let (entity, mut fall_damage) = fall_damage_query
-            .get_mut(position_update.source.entity())
+        let (_entity, mut fall_damage) = fall_damage_query
+            .get_mut(position_update.player_entity)
             .unwrap();
 
         if fall_damage.0 != 0 && position_update.velocity.y > -0.1 {
@@ -118,36 +123,54 @@ fn fall_damage(
 }
 
 fn change_health(
-    net: Res<NetworkServer>,
-    mut health_query: Query<(&mut Health, &ConnectionId)>,
+    net: Res<Server>,
+    mut health_query: Query<&mut Health>,
     mut damage_events: EventReader<DamageEvent>,
     mut heal_events: EventReader<HealEvent>,
 ) {
     for damage_event in damage_events.read() {
-        let (mut health, connection_id) = health_query.get_mut(damage_event.entity).unwrap();
+        let mut health = health_query.get_mut(damage_event.player_entity).unwrap();
         let mut interface_update = health.take_damage(damage_event.damage);
 
         if health.hearts == 0 {
             interface_update.set_visible("death_screen".to_owned());
         }
 
-        net.send_one(*connection_id, interface_update);
+        net.send_one(damage_event.player_entity, interface_update);
     }
 
-    for event in heal_events.read() {
-        let (mut health, connection_id) = health_query.get_mut(event.entity).unwrap();
-        let interface_update = health.heal(event.healing);
-        net.send_one(*connection_id, interface_update);
+    for heal_event in heal_events.read() {
+        let mut health = health_query.get_mut(heal_event.player_entity).unwrap();
+        let interface_update = health.heal(heal_event.healing);
+        net.send_one(heal_event.player_entity, interface_update);
     }
 }
 
 #[derive(Component)]
 struct DeathInterface;
 
+fn register_death_interface(
+    mut commands: Commands,
+    new_player_query: Query<Entity, Added<Player>>,
+    mut registration_events: EventWriter<RegisterInterfaceProvider>,
+) {
+    for player_entity in new_player_query.iter() {
+        commands.entity(player_entity).with_children(|parent| {
+            let death_interface_entity = parent.spawn(DeathInterface).id();
+
+            registration_events.send(RegisterInterfaceProvider {
+                player_entity,
+                node_path: String::from("death_interface"),
+                node_entity: death_interface_entity,
+            });
+        });
+    }
+}
+
 // TODO: This should test that your health is zero. The parent of the DeathInterface is the player
 // it belongs to, just query for parent.
 fn death_interface(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     mut interface_query: Query<
         &mut InterfaceInteractionEvents,
         (Changed<InterfaceInteractionEvents>, With<DeathInterface>),
@@ -165,15 +188,15 @@ fn death_interface(
             }
 
             respawn_events.send(RespawnEvent {
-                entity: interface_interaction.source.entity(),
+                player_entity: interface_interaction.player_entity,
             });
             heal_events.send(HealEvent {
-                entity: interface_interaction.source.entity(),
+                player_entity: interface_interaction.player_entity,
                 healing: u32::MAX,
             });
 
             net.send_one(
-                interface_interaction.source,
+                interface_interaction.player_entity,
                 messages::InterfaceVisibilityUpdate {
                     interface_path: "death_screen".to_owned(),
                     visible: true,

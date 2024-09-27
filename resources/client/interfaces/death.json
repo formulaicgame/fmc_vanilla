@@ -17,7 +17,7 @@
     }
   },
   "background_color": {
-    "Rgba": {
+    "LinearRgba": {
       "red": 0.25,
       "green": 0.25,
       "blue": 0.25,
@@ -39,7 +39,7 @@
                 "text": "Total Death!",
                 "font_size": 18,
                 "color": {
-                    "Rgba": {
+                    "LinearRgba": {
                         "red": 1,
                         "green": 1,
                         "blue": 1,
@@ -74,7 +74,7 @@
           "justify_content": "Center"
         },
         "background_color": {
-          "Rgba": {
+          "LinearRgba": {
             "red": 0.43,
             "green": 0.43,
             "blue": 0.43,
@@ -82,7 +82,7 @@
           }
         },
         "border_color": {
-          "Rgba": {
+          "LinearRgba": {
             "red": 0,
             "green": 0,
             "blue": 0,
@@ -121,7 +121,7 @@
                       }
                     },
                     "border_color": {
-                      "Rgba": {
+                      "LinearRgba": {
                         "red": 0.66,
                         "green": 0.66,
                         "blue": 0.66,
@@ -148,7 +148,7 @@
                       }
                     },
                     "border_color": {
-                      "Rgba": {
+                      "LinearRgba": {
                         "red": 0.243,
                         "green": 0.243,
                         "blue": 0.243,
@@ -170,7 +170,7 @@
                   "text": "Respawn",
                   "font_size": 9,
                   "color": {
-                    "Rgba": {
+                    "LinearRgba": {
                       "red": 1,
                       "green": 1,
                       "blue": 1,

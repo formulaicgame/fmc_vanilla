@@ -264,14 +264,14 @@ impl Water {
             self.block_to_water
                 .insert((block_id, None), water_block.clone());
 
-            if water_block[Corners::Left] == water_block[Corners::Right]
-                && water_block[Corners::Left] == water_block[Corners::FarRight]
-                && water_block[Corners::Left] == water_block[Corners::FarLeft]
+            if water_block[Corner::Left] == water_block[Corner::Right]
+                && water_block[Corner::Left] == water_block[Corner::FarRight]
+                && water_block[Corner::Left] == water_block[Corner::FarLeft]
             {
-                water_block[Corners::Left] = water_block[Corners::Left].decrement();
-                water_block[Corners::Right] = water_block[Corners::Right].decrement();
-                water_block[Corners::FarRight] = water_block[Corners::FarRight].decrement();
-                water_block[Corners::FarLeft] = water_block[Corners::FarLeft].decrement();
+                water_block[Corner::Left] = water_block[Corner::Left].decrement();
+                water_block[Corner::Right] = water_block[Corner::Right].decrement();
+                water_block[Corner::FarRight] = water_block[Corner::FarRight].decrement();
+                water_block[Corner::FarLeft] = water_block[Corner::FarLeft].decrement();
 
                 continue;
             }
@@ -288,10 +288,10 @@ impl Water {
                 );
             }
 
-            water_block[Corners::Left] = water_block[Corners::Left].decrement();
-            water_block[Corners::Right] = water_block[Corners::Right].decrement();
-            water_block[Corners::FarRight] = water_block[Corners::FarRight].decrement();
-            water_block[Corners::FarLeft] = water_block[Corners::FarLeft].decrement();
+            water_block[Corner::Left] = water_block[Corner::Left].decrement();
+            water_block[Corner::Right] = water_block[Corner::Right].decrement();
+            water_block[Corner::FarRight] = water_block[Corner::FarRight].decrement();
+            water_block[Corner::FarLeft] = water_block[Corner::FarLeft].decrement();
         }
     }
 }
@@ -332,21 +332,21 @@ impl WaterLevel {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Corners {
+enum Corner {
     Left = 0,
     Right,
     FarRight,
     FarLeft,
 }
 
-impl Corners {
+impl Corner {
     fn rotate(&self, rotation: BlockRotation) -> Self {
         let new = (*self as usize + rotation as usize) % 4;
         match new {
-            0 => Corners::Left,
-            1 => Corners::Right,
-            2 => Corners::FarRight,
-            3 => Corners::FarLeft,
+            0 => Corner::Left,
+            1 => Corner::Right,
+            2 => Corner::FarRight,
+            3 => Corner::FarLeft,
             _ => unreachable!(),
         }
     }
@@ -363,28 +363,28 @@ impl WaterBlock {
         match rotation {
             BlockRotation::Once => WaterBlock {
                 corners: [
-                    self.corners[Corners::FarLeft as usize],
-                    self.corners[Corners::Left as usize],
-                    self.corners[Corners::Right as usize],
-                    self.corners[Corners::FarRight as usize],
+                    self.corners[Corner::FarLeft as usize],
+                    self.corners[Corner::Left as usize],
+                    self.corners[Corner::Right as usize],
+                    self.corners[Corner::FarRight as usize],
                 ],
                 is_source: self.is_source,
             },
             BlockRotation::Twice => WaterBlock {
                 corners: [
-                    self.corners[Corners::FarRight as usize],
-                    self.corners[Corners::FarLeft as usize],
-                    self.corners[Corners::Left as usize],
-                    self.corners[Corners::Right as usize],
+                    self.corners[Corner::FarRight as usize],
+                    self.corners[Corner::FarLeft as usize],
+                    self.corners[Corner::Left as usize],
+                    self.corners[Corner::Right as usize],
                 ],
                 is_source: self.is_source,
             },
             BlockRotation::Thrice => WaterBlock {
                 corners: [
-                    self.corners[Corners::Right as usize],
-                    self.corners[Corners::FarRight as usize],
-                    self.corners[Corners::FarLeft as usize],
-                    self.corners[Corners::Left as usize],
+                    self.corners[Corner::Right as usize],
+                    self.corners[Corner::FarRight as usize],
+                    self.corners[Corner::FarLeft as usize],
+                    self.corners[Corner::Left as usize],
                 ],
                 is_source: self.is_source,
             },
@@ -392,7 +392,7 @@ impl WaterBlock {
         }
     }
 
-    fn update_corner(&mut self, corner: Corners, water_level: WaterLevel) {
+    fn update_corner(&mut self, corner: Corner, water_level: WaterLevel) {
         if self.corners[corner as usize] == water_level
             || self.corners[corner as usize] == WaterLevel::Ten
         {
@@ -420,15 +420,15 @@ impl WaterBlock {
     }
 }
 
-impl Index<Corners> for WaterBlock {
+impl Index<Corner> for WaterBlock {
     type Output = WaterLevel;
-    fn index(&self, index: Corners) -> &Self::Output {
+    fn index(&self, index: Corner) -> &Self::Output {
         &self.corners[index as usize]
     }
 }
 
-impl IndexMut<Corners> for WaterBlock {
-    fn index_mut(&mut self, index: Corners) -> &mut Self::Output {
+impl IndexMut<Corner> for WaterBlock {
+    fn index_mut(&mut self, index: Corner) -> &mut Self::Output {
         &mut self.corners[index as usize]
     }
 }
@@ -569,10 +569,10 @@ fn spread_water(
                 let new_max = to.corners.iter().max().unwrap().decrement();
                 WaterBlock {
                     corners: [
-                        to[Corners::Left].min(new_max),
-                        to[Corners::Right].min(new_max),
-                        to[Corners::FarRight].min(new_max),
-                        to[Corners::FarLeft].min(new_max),
+                        to[Corner::Left].min(new_max),
+                        to[Corner::Right].min(new_max),
+                        to[Corner::FarRight].min(new_max),
+                        to[Corner::FarLeft].min(new_max),
                     ],
                     is_source: false,
                 }
@@ -590,29 +590,25 @@ fn spread_water(
             ]
         } else if !water_block.is_source {
             for (corner, block_faces) in [
-                (Corners::Left, [BlockFace::Left, BlockFace::Front]),
-                (Corners::Left, [BlockFace::Front, BlockFace::Left]),
-                (Corners::Right, [BlockFace::Right, BlockFace::Front]),
-                (Corners::Right, [BlockFace::Front, BlockFace::Right]),
-                (Corners::FarRight, [BlockFace::Right, BlockFace::Back]),
-                (Corners::FarRight, [BlockFace::Back, BlockFace::Right]),
-                (Corners::FarLeft, [BlockFace::Left, BlockFace::Back]),
-                (Corners::FarLeft, [BlockFace::Back, BlockFace::Left]),
+                (Corner::Left, [BlockFace::Left, BlockFace::Front]),
+                (Corner::Left, [BlockFace::Front, BlockFace::Left]),
+                (Corner::Right, [BlockFace::Right, BlockFace::Front]),
+                (Corner::Right, [BlockFace::Front, BlockFace::Right]),
+                (Corner::FarRight, [BlockFace::Right, BlockFace::Back]),
+                (Corner::FarRight, [BlockFace::Back, BlockFace::Right]),
+                (Corner::FarLeft, [BlockFace::Left, BlockFace::Back]),
+                (Corner::FarLeft, [BlockFace::Back, BlockFace::Left]),
             ] {
                 if let Some(adjacent_water_block) = &change_as_water[block_faces[0]] {
                     let (corner_one, corner_two) = match (corner, block_faces[0]) {
-                        (Corners::Left, BlockFace::Left) => (Corners::Right, Corners::Left),
-                        (Corners::Left, BlockFace::Front) => (Corners::FarLeft, Corners::Left),
-                        (Corners::Right, BlockFace::Right) => (Corners::Left, Corners::Right),
-                        (Corners::Right, BlockFace::Front) => (Corners::FarRight, Corners::Right),
-                        (Corners::FarRight, BlockFace::Right) => {
-                            (Corners::FarLeft, Corners::FarRight)
-                        }
-                        (Corners::FarRight, BlockFace::Back) => (Corners::Right, Corners::FarRight),
-                        (Corners::FarLeft, BlockFace::Left) => {
-                            (Corners::FarRight, Corners::FarLeft)
-                        }
-                        (Corners::FarLeft, BlockFace::Back) => (Corners::Left, Corners::FarLeft),
+                        (Corner::Left, BlockFace::Left) => (Corner::Right, Corner::Left),
+                        (Corner::Left, BlockFace::Front) => (Corner::FarLeft, Corner::Left),
+                        (Corner::Right, BlockFace::Right) => (Corner::Left, Corner::Right),
+                        (Corner::Right, BlockFace::Front) => (Corner::FarRight, Corner::Right),
+                        (Corner::FarRight, BlockFace::Right) => (Corner::FarLeft, Corner::FarRight),
+                        (Corner::FarRight, BlockFace::Back) => (Corner::Right, Corner::FarRight),
+                        (Corner::FarLeft, BlockFace::Left) => (Corner::FarRight, Corner::FarLeft),
+                        (Corner::FarLeft, BlockFace::Back) => (Corner::Left, Corner::FarLeft),
                         _ => unreachable!(),
                     };
                     if adjacent_water_block.is_source {
@@ -633,21 +629,17 @@ fn spread_water(
                     let diagonal_water_block = change_as_water[block_faces].as_ref().unwrap();
                     let (corner_near, corner_far) = match block_faces {
                         // left corner
-                        [BlockFace::Left, BlockFace::Front] => (Corners::FarRight, Corners::Right),
-                        [BlockFace::Front, BlockFace::Left] => {
-                            (Corners::FarLeft, Corners::FarRight)
-                        }
+                        [BlockFace::Left, BlockFace::Front] => (Corner::FarRight, Corner::Right),
+                        [BlockFace::Front, BlockFace::Left] => (Corner::FarLeft, Corner::FarRight),
                         // right corner
-                        [BlockFace::Right, BlockFace::Front] => (Corners::FarLeft, Corners::Left),
-                        [BlockFace::Front, BlockFace::Right] => {
-                            (Corners::FarLeft, Corners::FarRight)
-                        }
+                        [BlockFace::Right, BlockFace::Front] => (Corner::FarLeft, Corner::Left),
+                        [BlockFace::Front, BlockFace::Right] => (Corner::FarLeft, Corner::FarRight),
                         // far right corner
-                        [BlockFace::Right, BlockFace::Back] => (Corners::FarLeft, Corners::Left),
-                        [BlockFace::Back, BlockFace::Right] => (Corners::Left, Corners::Right),
+                        [BlockFace::Right, BlockFace::Back] => (Corner::FarLeft, Corner::Left),
+                        [BlockFace::Back, BlockFace::Right] => (Corner::Left, Corner::Right),
                         // far left corner
-                        [BlockFace::Left, BlockFace::Back] => (Corners::FarRight, Corners::Right),
-                        [BlockFace::Back, BlockFace::Left] => (Corners::Left, Corners::Right),
+                        [BlockFace::Left, BlockFace::Back] => (Corner::FarRight, Corner::Right),
+                        [BlockFace::Back, BlockFace::Left] => (Corner::Left, Corner::Right),
                         _ => unreachable!(),
                     };
                     if diagonal_water_block.is_source {
@@ -686,17 +678,17 @@ fn spread_water(
             //    _ => unreachable!(),
             //};
             let to_corners = match block_face {
-                BlockFace::Left => [Corners::Right, Corners::FarRight],
-                BlockFace::Right => [Corners::Left, Corners::FarLeft],
-                BlockFace::Front => [Corners::FarLeft, Corners::FarRight],
-                BlockFace::Back => [Corners::Left, Corners::Right],
+                BlockFace::Left => [Corner::Right, Corner::FarRight],
+                BlockFace::Right => [Corner::Left, Corner::FarLeft],
+                BlockFace::Front => [Corner::FarLeft, Corner::FarRight],
+                BlockFace::Back => [Corner::Left, Corner::Right],
                 _ => unreachable!(),
             };
             let from_corners = match block_face {
-                BlockFace::Left => [Corners::Left, Corners::FarLeft],
-                BlockFace::Right => [Corners::Right, Corners::FarRight],
-                BlockFace::Front => [Corners::Left, Corners::Right],
-                BlockFace::Back => [Corners::FarLeft, Corners::FarRight],
+                BlockFace::Left => [Corner::Left, Corner::FarLeft],
+                BlockFace::Right => [Corner::Right, Corner::FarRight],
+                BlockFace::Front => [Corner::Left, Corner::Right],
+                BlockFace::Back => [Corner::FarLeft, Corner::FarRight],
                 _ => unreachable!(),
             };
             let position = block_face.shift_position(changed_block.position);
@@ -736,23 +728,23 @@ fn spread_water(
         for (block_faces, corner_to, corner_from) in [
             (
                 [BlockFace::Front, BlockFace::Left],
-                Corners::FarRight,
-                Corners::Left,
+                Corner::FarRight,
+                Corner::Left,
             ),
             (
                 [BlockFace::Front, BlockFace::Right],
-                Corners::FarLeft,
-                Corners::Right,
+                Corner::FarLeft,
+                Corner::Right,
             ),
             (
                 [BlockFace::Back, BlockFace::Right],
-                Corners::Left,
-                Corners::FarRight,
+                Corner::Left,
+                Corner::FarRight,
             ),
             (
                 [BlockFace::Back, BlockFace::Left],
-                Corners::Right,
-                Corners::FarLeft,
+                Corner::Right,
+                Corner::FarLeft,
             ),
         ] {
             if let Some(diagonal_water_block) = &change_as_water[block_faces] {
@@ -816,15 +808,15 @@ fn spread_water(
     update_timer.tick(time.delta());
     if update_timer.just_finished() {
         block_updates.send_batch(updates.drain().filter_map(|(position, water_block)| {
-            let (block_id, block_state) = match water.water_to_block.get(&water_block) {
-                Some(k) => k.clone(),
-                None => (air, None),
-            };
             // TODO: The idea is that it's not supposed to generate invalid water states, but it
             // does often when trying to remove the water at edges. Ending up with states like
             // [Zero, Zero, One, One] and variations. This is probably what introduces the
             // flickering that sometimes happen.
             //let (block_id, block_state) = water.water_to_block[&water_block];
+            let (block_id, block_state) = match water.water_to_block.get(&water_block) {
+                Some(k) => k.clone(),
+                None => (air, None),
+            };
             Some(BlockUpdate::Change {
                 position,
                 block_id,

@@ -11,7 +11,7 @@
     },
     "tools": ["pickaxe"],
     "drop": {
-        "requires_tool": true,
+        "requires_tool": false,
         "drop": "coal_ore"
     }
 }

@@ -1,4 +1,4 @@
 *.sqlite
 server_settings.txt
-/resources/assets.tar
+/resources/assets.tar.zstd
 /target

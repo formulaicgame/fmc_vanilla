@@ -3,18 +3,20 @@ use fmc::{
     blocks::Blocks,
     database::Database,
     items::ItemStack,
+    models::{Model, ModelAnimations, ModelBundle, ModelVisibility, Models},
+    networking::{NetworkEvent, NetworkMessage, Server},
     physics::shapes::Aabb,
     players::{Camera, Player},
     prelude::*,
     utils,
     world::{chunk::Chunk, WorldMap},
 };
-use fmc_networking::{messages, ConnectionId, NetworkServer, ServerNetworkEvent, Username};
+use fmc_protocol::messages;
 use serde::{Deserialize, Serialize};
 
 use crate::{items::crafting::CraftingGrid, world::WorldProperties};
 
-use self::health::Health;
+use self::health::{Health, HealthBundle};
 
 mod hand;
 mod health;
@@ -31,7 +33,11 @@ impl Plugin for PlayerPlugin {
             .add_plugins(hand::HandPlugin)
             .add_systems(
                 Update,
-                ((load_player_data, apply_deferred).chain(), respawn_players),
+                (
+                    (add_players, apply_deferred).chain(),
+                    respawn_players,
+                    rotate_player_model,
+                ),
             )
             // Save player after all remaining events have been handled. Avoid dupes and other
             // unexpected behaviour.
@@ -76,7 +82,7 @@ pub struct PlayerBundle {
     equipment: Equipment,
     crafting_table: CraftingGrid,
     equipped_item: EquippedItem,
-    health: Health,
+    health: HealthBundle,
     gamemode: GameMode,
 }
 
@@ -90,15 +96,31 @@ impl Default for PlayerBundle {
             equipment: Equipment::default(),
             crafting_table: CraftingGrid::with_size(4),
             equipped_item: EquippedItem::default(),
-            health: Health {
-                hearts: 20,
-                max: 20,
-            },
+            health: HealthBundle::default(),
             gamemode: GameMode::Survival,
         }
     }
 }
 
+impl From<PlayerSave> for PlayerBundle {
+    fn from(save: PlayerSave) -> Self {
+        PlayerBundle {
+            transform: Transform::from_translation(save.position),
+            camera: Camera(Transform {
+                translation: save.camera_position,
+                rotation: save.camera_rotation,
+                ..default()
+            }),
+            inventory: save.inventory,
+            equipment: save.equipment,
+            health: HealthBundle::from_health(save.health),
+            ..default()
+        }
+    }
+}
+
+// TODO: Remember equipped and send to player
+//
 /// The format the player is saved as in the database.
 #[derive(Serialize, Deserialize)]
 pub struct PlayerSave {
@@ -117,11 +139,9 @@ impl PlayerSave {
         let mut stmt = conn
             .prepare("INSERT OR REPLACE INTO players VALUES (?,?)")
             .unwrap();
-        stmt.execute(rusqlite::params![
-            username,
-            serde_json::to_string(self).unwrap()
-        ])
-        .unwrap();
+        let json = serde_json::to_string(self).unwrap();
+
+        stmt.execute(rusqlite::params![username, json]).unwrap();
     }
 
     fn load(username: &str, database: &Database) -> Option<Self> {
@@ -145,41 +165,26 @@ impl PlayerSave {
             return None;
         };
     }
-
-    // TODO: Remember equipped and send to player
-    fn to_bundle(self) -> PlayerBundle {
-        PlayerBundle {
-            transform: Transform::from_translation(self.position),
-            camera: Camera(Transform {
-                translation: self.camera_position,
-                rotation: self.camera_rotation,
-                ..default()
-            }),
-            inventory: self.inventory,
-            equipment: self.equipment,
-            health: self.health,
-            ..default()
-        }
-    }
 }
 
-fn load_player_data(
+fn add_players(
     mut commands: Commands,
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     database: Res<Database>,
+    models: Res<Models>,
     mut respawn_events: EventWriter<RespawnEvent>,
-    added_players: Query<(Entity, &Username, &ConnectionId), Added<Username>>,
+    added_players: Query<(Entity, &Player), Added<Player>>,
 ) {
-    for (entity, username, connection) in added_players.iter() {
-        let bundle = if let Some(save) = PlayerSave::load(&username, &database) {
-            save.to_bundle()
+    for (player_entity, player) in added_players.iter() {
+        let bundle = if let Some(save) = PlayerSave::load(&player.username, &database) {
+            PlayerBundle::from(save)
         } else {
-            respawn_events.send(RespawnEvent { entity });
+            respawn_events.send(RespawnEvent { player_entity });
             PlayerBundle::default()
         };
 
         net.send_one(
-            *connection,
+            player_entity,
             messages::PlayerPosition {
                 position: bundle.transform.translation,
                 velocity: DVec3::ZERO,
@@ -187,28 +192,43 @@ fn load_player_data(
         );
 
         net.send_one(
-            *connection,
+            player_entity,
             messages::PlayerCameraPosition {
                 position: bundle.camera.translation.as_vec3(),
             },
         );
 
         net.send_one(
-            *connection,
+            player_entity,
             messages::PlayerCameraRotation {
                 rotation: bundle.camera.rotation.as_quat(),
             },
         );
 
-        commands.entity(entity).insert(bundle);
+        commands
+            .entity(player_entity)
+            .insert(bundle)
+            .with_children(|parent| {
+                parent.spawn(ModelBundle {
+                    model: Model::Asset(models.get_by_name("player").id),
+                    animations: ModelAnimations::default(),
+                    visibility: ModelVisibility::default(),
+                    global_transform: GlobalTransform::default(),
+                    transform: Transform {
+                        //translation: player_bundle.camera.translation - player_bundle.camera.translation.y,
+                        translation: DVec3::Z * 0.3 + DVec3::X * 0.3,
+                        ..default()
+                    },
+                });
+            });
     }
 }
 
 fn save_player_data(
     database: Res<Database>,
-    mut network_events: EventReader<ServerNetworkEvent>,
+    mut network_events: EventReader<NetworkEvent>,
     players: Query<(
-        &Username,
+        &Player,
         &Transform,
         &Camera,
         &Inventory,
@@ -217,11 +237,11 @@ fn save_player_data(
     )>,
 ) {
     for network_event in network_events.read() {
-        let ServerNetworkEvent::Disconnected { entity } = network_event else {
+        let NetworkEvent::Disconnected { entity } = network_event else {
             continue;
         };
 
-        let Ok((username, transform, camera, inventory, equipment, health)) = players.get(*entity)
+        let Ok((player, transform, camera, inventory, equipment, health)) = players.get(*entity)
         else {
             continue;
         };
@@ -234,13 +254,13 @@ fn save_player_data(
             equipment: equipment.clone(),
             health: health.clone(),
         }
-        .save(&username, &database);
+        .save(&player.username, &database);
     }
 }
 
 #[derive(Event)]
 pub struct RespawnEvent {
-    pub entity: Entity,
+    pub player_entity: Entity,
 }
 
 // TODO: If it can't find a valid spawn point it will just oscillate in an infinite loop between the
@@ -250,14 +270,13 @@ pub struct RespawnEvent {
 // between each spawn. A good idea if it's really hard to validate that the player won't suffocate
 // infinitely.
 fn respawn_players(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     world_properties: Res<WorldProperties>,
     world_map: Res<WorldMap>,
     database: Res<Database>,
     mut respawn_events: EventReader<RespawnEvent>,
-    connection_query: Query<&ConnectionId>,
 ) {
-    for event in respawn_events.read() {
+    for respawn_event in respawn_events.read() {
         let blocks = Blocks::get();
         let air = blocks.get_id("air");
 
@@ -295,9 +314,8 @@ fn respawn_players(
             chunk_position.y += Chunk::SIZE as i32;
         };
 
-        let connection_id = connection_query.get(event.entity).unwrap();
         net.send_one(
-            *connection_id,
+            respawn_event.player_entity,
             messages::PlayerPosition {
                 position: spawn_position.as_dvec3()
                     + DVec3 {
@@ -308,5 +326,23 @@ fn respawn_players(
                 velocity: DVec3::ZERO,
             },
         );
+    }
+}
+
+// TODO: This rotates the main player transform and lets propagation take care of the model.
+// Propagation takes a long time to be sent to the clients because of unfortunate system ordering.
+// This needs to be fixed on its own, but it will also become necessary to handle the player's
+// models directly, as there will be a small collection of them.
+fn rotate_player_model(
+    mut player_query: Query<&mut Transform, With<Player>>,
+    mut camera_rotation_events: EventReader<NetworkMessage<messages::PlayerCameraRotation>>,
+) {
+    for rotation_update in camera_rotation_events.read() {
+        let mut transform = player_query.get_mut(rotation_update.player_entity).unwrap();
+
+        let rotation = rotation_update.rotation.as_dquat();
+
+        let theta = rotation.y.atan2(rotation.w);
+        transform.rotation = DQuat::from_xyzw(0.0, theta.sin(), 0.0, theta.cos());
     }
 }

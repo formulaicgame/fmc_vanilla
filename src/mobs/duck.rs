@@ -69,7 +69,7 @@ fn spawn_duck(
             waterline: 0.4,
         },
         ModelBundle {
-            model: Model { id: duck_model.id },
+            model: Model::Asset(duck_model.id),
             animations,
             visibility: ModelVisibility::default(),
             transform: Transform::from_xyz(-30.0, 2.0, -1.0),
@@ -160,7 +160,6 @@ fn wander(
         let water_id = blocks.get_id("surface_water");
 
         let start = transform.translation().floor().as_ivec3();
-        // elements of (position, score)
         potential_blocks.push((start, u32::MIN, 0));
         already_visited.insert(start);
 
@@ -205,7 +204,7 @@ fn wander(
                     }
                 } else if block_id == water_id {
                     // If in water, stay in the shallows
-                    for step in 1..3i32 {
+                    for step in 1..4i32 {
                         let below = block_position - IVec3::Y * step;
                         let block_config = if let Some(block_id) = world_map.get_block(below) {
                             blocks.get_config(&block_id)
@@ -293,8 +292,7 @@ fn move_to_pathfinding_goal(
                 acceleration.x += direction.x * WALK_ACCELERATION;
                 acceleration.z += direction.z * WALK_ACCELERATION;
             } else if acceleration.y.abs() < 0.2 {
-                // TODO: This needs to be more deliberate. Needs states for when
-                // grounded/swimming/falling and differing speeds.
+                // TODO: Needs states for when grounded/swimming/falling and differing speeds.
                 acceleration.x += direction.x * WALK_ACCELERATION;
                 acceleration.z += direction.z * WALK_ACCELERATION;
             }

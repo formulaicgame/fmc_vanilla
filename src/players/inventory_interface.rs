@@ -4,11 +4,12 @@ use fmc::{
         RegisterInterfaceProvider,
     },
     items::{ItemStack, Items},
+    networking::{NetworkMessage, Server},
     players::Player,
     prelude::*,
 };
 
-use fmc_networking::{messages, ConnectionId, NetworkData, NetworkServer};
+use fmc_protocol::messages;
 
 use crate::{
     items::crafting::{CraftingGrid, Recipes},
@@ -42,11 +43,11 @@ impl Plugin for InventoryInterfacePlugin {
 
 fn initialize_interface(
     mut commands: Commands,
-    net: Res<NetworkServer>,
-    new_player_query: Query<(Entity, &ConnectionId), Added<Player>>,
+    net: Res<Server>,
+    new_player_query: Query<Entity, Added<Player>>,
     mut registration_events: EventWriter<RegisterInterfaceProvider>,
 ) {
-    for (player_entity, connection) in new_player_query.iter() {
+    for player_entity in new_player_query.iter() {
         commands.entity(player_entity).with_children(|parent| {
             let inventory_entity = parent.spawn(InventoryNode).id();
             registration_events.send(RegisterInterfaceProvider {
@@ -110,10 +111,10 @@ fn initialize_interface(
             crafting_items_boxes.add_empty_itembox("inventory/crafting_input", i);
         }
 
-        net.send_one(*connection, crafting_items_boxes);
+        net.send_one(player_entity, crafting_items_boxes);
 
         net.send_one(
-            *connection,
+            player_entity,
             messages::InterfaceVisibilityUpdate {
                 interface_path: "hotbar".to_owned(),
                 visible: true,
@@ -123,11 +124,11 @@ fn initialize_interface(
 }
 
 fn send_server_updates(
-    net: Res<NetworkServer>,
-    inventory_query: Query<(&Inventory, &ConnectionId), Changed<Inventory>>,
-    equipment_query: Query<(&Equipment, &ConnectionId), Changed<Equipment>>,
+    net: Res<Server>,
+    inventory_query: Query<(Entity, &Inventory), Changed<Inventory>>,
+    equipment_query: Query<(Entity, &Equipment), Changed<Equipment>>,
 ) {
-    for (inventory, connection) in inventory_query.iter() {
+    for (player_entity, inventory) in inventory_query.iter() {
         let mut inventory_node = messages::InterfaceItemBoxUpdate::default();
 
         for (i, item_stack) in inventory.iter().skip(9).enumerate() {
@@ -137,7 +138,7 @@ fn send_server_updates(
                     i as u32,
                     item.id,
                     item_stack.size(),
-                    item.properties["durability"].as_u32(),
+                    item.properties["durability"].as_u64().map(|v| v as u32),
                     item.properties["description"].as_str(),
                 );
             } else {
@@ -145,7 +146,7 @@ fn send_server_updates(
                 //inventory_node.add_itembox("inventory", i as u32, 1, 2, None, None);
             }
         }
-        net.send_one(*connection, inventory_node);
+        net.send_one(player_entity, inventory_node);
 
         let mut hotbar_node = messages::InterfaceItemBoxUpdate::default();
 
@@ -156,7 +157,7 @@ fn send_server_updates(
                     i as u32,
                     item.id,
                     item_stack.size(),
-                    item.properties["durability"].as_u32(),
+                    item.properties["durability"].as_u64().map(|v| v as u32),
                     item.properties["description"].as_str(),
                 );
             } else {
@@ -169,10 +170,10 @@ fn send_server_updates(
             }
         }
 
-        net.send_one(*connection, hotbar_node);
+        net.send_one(player_entity, hotbar_node);
     }
 
-    for (equipment, connection) in equipment_query.iter() {
+    for (player_entity, equipment) in equipment_query.iter() {
         let mut equipment_node = messages::InterfaceItemBoxUpdate::default();
         for (item_stack, interface_path) in [
             (&equipment.helmet, "equipment/helmet"),
@@ -186,7 +187,7 @@ fn send_server_updates(
                     0,
                     item.id,
                     item_stack.size(),
-                    item.properties["durability"].as_u32(),
+                    item.properties["durability"].as_u64().map(|v| v as u32),
                     item.properties["description"].as_str(),
                 );
             } else {
@@ -194,7 +195,7 @@ fn send_server_updates(
             }
         }
 
-        net.send_one(*connection, equipment_node);
+        net.send_one(player_entity, equipment_node);
     }
 }
 
@@ -364,19 +365,16 @@ fn handle_equipment_events<T: EquipmentNode + Component>(
 struct CraftingInput;
 
 fn handle_crafting_input_events(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     recipes: Res<Recipes>,
-    mut inventory_query: Query<
-        (&ConnectionId, &mut HeldInterfaceItem, &mut CraftingGrid),
-        With<Player>,
-    >,
+    mut inventory_query: Query<(Entity, &mut HeldInterfaceItem, &mut CraftingGrid), With<Player>>,
     mut interface_events: Query<
         (&mut InterfaceInteractionEvents, &Parent),
         (Changed<InterfaceInteractionEvents>, With<CraftingInput>),
     >,
 ) {
     for (mut events, parent) in interface_events.iter_mut() {
-        let (connection, mut held_item, mut crafting_input) =
+        let (player_entity, mut held_item, mut crafting_input) =
             inventory_query.get_mut(parent.get()).unwrap();
         for event in events.read() {
             match *event {
@@ -414,7 +412,7 @@ fn handle_crafting_input_events(
                 update.add_empty_itembox("inventory/crafting_output", 0);
             }
 
-            net.send_one(*connection, update);
+            net.send_one(player_entity, update);
         }
     }
 }
@@ -423,13 +421,10 @@ fn handle_crafting_input_events(
 struct CraftingOutput;
 
 fn handle_crafting_output_events(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     recipes: Res<Recipes>,
     items: Res<Items>,
-    mut inventory_query: Query<
-        (&mut CraftingGrid, &mut HeldInterfaceItem, &ConnectionId),
-        With<Player>,
-    >,
+    mut inventory_query: Query<(Entity, &mut CraftingGrid, &mut HeldInterfaceItem), With<Player>>,
     mut interface_events: Query<
         (&mut InterfaceInteractionEvents, &Parent),
         (Changed<InterfaceInteractionEvents>, With<CraftingOutput>),
@@ -440,7 +435,7 @@ fn handle_crafting_output_events(
             let messages::InterfaceInteraction::TakeItem { quantity, .. } = *event else {
                 continue;
             };
-            let (mut crafting_input, mut held_item, connection) =
+            let (player_entity, mut crafting_input, mut held_item) =
                 inventory_query.get_mut(parent.get()).unwrap();
             let Some(output) = recipes.get("crafting").get_output(&crafting_input) else {
                 continue;
@@ -474,7 +469,7 @@ fn handle_crafting_output_events(
                             i as u32,
                             item.id,
                             item_stack.size(),
-                            item.properties["durability"].as_u32(),
+                            item.properties["durability"].as_u64().map(|v| v as u32),
                             item.properties["description"].as_str(),
                         );
                     } else {
@@ -495,15 +490,15 @@ fn handle_crafting_output_events(
                     crafting_interface.add_empty_itembox("inventory/crafting_output", 0);
                 }
 
-                net.send_one(*connection, crafting_interface)
+                net.send_one(player_entity, crafting_interface)
             }
         }
     }
 }
 
 fn equip_item(
-    net: Res<NetworkServer>,
-    mut equip_events: EventReader<NetworkData<messages::InterfaceEquipItem>>,
+    net: Res<Server>,
+    mut equip_events: EventReader<NetworkMessage<messages::InterfaceEquipItem>>,
     mut equipped_item_query: Query<&mut EquippedItem>,
 ) {
     for equip_event in equip_events.read() {
@@ -512,12 +507,12 @@ fn equip_item(
         }
 
         if equip_event.index > 8 {
-            net.disconnect(equip_event.source);
+            net.disconnect(equip_event.player_entity);
             continue;
         }
 
         let mut equipped_item = equipped_item_query
-            .get_mut(equip_event.source.entity())
+            .get_mut(equip_event.player_entity)
             .unwrap();
         equipped_item.0 = equip_event.index as usize;
     }

@@ -2,7 +2,7 @@ use fmc::{
     bevy::math::DVec3,
     items::{Item, ItemConfig, ItemId, ItemStack, Items},
     models::{Model, ModelAnimations, ModelBundle, ModelConfig, ModelMap, ModelVisibility},
-    physics::{PhysicsBundle, Velocity},
+    physics::{shapes::Aabb, PhysicsBundle, Velocity},
     prelude::*,
     utils,
 };
@@ -37,33 +37,24 @@ impl GroundItemBundle {
             item_config.max_stack_size,
         ));
 
-        let mut aabb = model_config.aabb.clone();
-
-        // We want to scale the model down to fit in a 0.15xYx0.15 box so the dropped
-        // item is fittingly small. Then extending the smallest horizontal dimension so
-        // that it becomes square.
-        const WIDTH: f64 = 0.075;
-        let max = aabb.half_extents.x.max(aabb.half_extents.z);
-        let scale = WIDTH / max;
-        aabb.half_extents.x = WIDTH;
-        aabb.half_extents.y *= scale;
-        aabb.half_extents.z = WIDTH;
+        // TODO: This won't work if the model must be scaled up
+        //
+        // We want dropped items to have a uniform size. If the model's width is
+        // larger than HALF_SIZE*2 we scale it by width to fit in a 0.15 wide square. If it
+        // is already smaller than that, we instead scale the height down to 0.15.
+        const HALF_SIZE: f64 = 0.075;
+        let aabb = model_config.aabb.clone();
+        let xz_scale = HALF_SIZE / aabb.half_extents.x.max(aabb.half_extents.z);
+        let y_scale = HALF_SIZE * 1.5 / aabb.half_extents.y;
+        let scale = if xz_scale < 1.0 { xz_scale } else { y_scale };
 
         let random = rand::random::<f64>() * std::f64::consts::TAU;
         let (velocity_x, velocity_z) = random.sin_cos();
 
-        // XXX: For some reason the center has to be zeroed. Does bevy center gltf models?
-        // When the model is scaled does it shift the center(zeroing it like this would
-        // then be slightly off)?
-        aabb.center *= 0.0;
         let translation = position + DVec3::splat(0.5) - DVec3::from(aabb.center);
-        //Offset the aabb slightly downwards to make the item float for clients.
-        aabb.center += DVec3::new(0.0, -0.1, 0.0);
 
         let model_bundle = ModelBundle {
-            model: Model {
-                id: item_config.model_id,
-            },
+            model: Model::Asset(item_config.model_id),
             animations: ModelAnimations::default(),
             visibility: ModelVisibility { is_visible: true },
             global_transform: GlobalTransform::default(),
@@ -76,7 +67,11 @@ impl GroundItemBundle {
 
         let physics_bundle = PhysicsBundle {
             velocity: Velocity(DVec3::new(velocity_x, 5.5, velocity_z)),
-            aabb,
+            aabb: Aabb {
+                //Offset the aabb slightly downwards to make the item float for clients.
+                center: DVec3::new(0.0, -0.1, 0.0),
+                half_extents: DVec3::splat(HALF_SIZE),
+            },
             ..default()
         };
 

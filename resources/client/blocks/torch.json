@@ -1,14 +1,39 @@
 {
     "type": "model",
     "name": "torch",
-    "center_model": {
-        "name": "torch"
-    },
+    "model": "torch",
+    "light": 14,
     "friction": {
         "drag": [0.0, 0.0, 0.0]
     },
+    "hardness": 0,
     "drop": {
         "requires_tool": false,
         "drop": "torch"
+    },
+    "placement": {
+        "ceiling": false,
+        "sides": true,
+        "floor": true,
+        "rotatable": false,
+        "side_transform": {
+            "translation": [
+                0.0,
+                0.2206,
+                -0.5
+            ],
+            
+            "rotation": [
+                0.191,
+                0,
+                0,
+                0.982
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        }
     }
 }

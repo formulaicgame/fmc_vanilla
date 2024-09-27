@@ -5,10 +5,11 @@ use fmc::{
     blocks::{BlockData, Blocks},
     interfaces::{HeldInterfaceItem, InterfaceInteractionEvents, RegisterInterfaceProvider},
     items::{ItemStack, Items},
+    networking::Server,
     players::Player,
     prelude::*,
 };
-use fmc_networking::{messages, ConnectionId, NetworkServer};
+use fmc_protocol::messages;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -119,11 +120,11 @@ fn spawn_function(commands: &mut EntityCommands, block_data: Option<&BlockData>)
 }
 
 fn handle_interface_events(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     registry: Res<CraftingTableRegistry>,
     items: Res<Items>,
     recipes: Res<Recipes>,
-    mut player_query: Query<(&ConnectionId, &mut HeldInterfaceItem), With<Player>>,
+    mut player_query: Query<&mut HeldInterfaceItem, With<Player>>,
     mut input_events: Query<
         (Entity, &mut CraftingTable, &mut InterfaceInteractionEvents),
         Changed<InterfaceInteractionEvents>,
@@ -131,7 +132,7 @@ fn handle_interface_events(
 ) {
     for (crafting_table_entity, mut crafting_table, mut events) in input_events.iter_mut() {
         for event in events.read() {
-            let (_, mut held_item) = player_query.get_mut(event.source.entity()).unwrap();
+            let mut held_item = player_query.get_mut(event.player_entity).unwrap();
 
             let mut interface_update = messages::InterfaceItemBoxUpdate::default();
 
@@ -199,9 +200,7 @@ fn handle_interface_events(
 
             if !interface_update.updates.is_empty() {
                 net.send_many(
-                    player_query
-                        .iter_many(&registry.table_to_players[&crafting_table_entity])
-                        .map(|query| query.0),
+                    &registry.table_to_players[&crafting_table_entity],
                     interface_update,
                 );
             }
@@ -210,10 +209,9 @@ fn handle_interface_events(
 }
 
 fn handle_block_hits(
-    net: Res<NetworkServer>,
+    net: Res<Server>,
     mut registry: ResMut<CraftingTableRegistry>,
     recipes: Res<Recipes>,
-    player_query: Query<&ConnectionId, With<Player>>,
     mut block_hits: Query<
         (Entity, &CraftingTable, &mut HandInteractions),
         Changed<HandInteractions>,
@@ -235,15 +233,13 @@ fn handle_block_hits(
                 node_entity: crafting_table_entity,
             });
 
-            let connection = player_query.get(player_entity).unwrap();
-
             let mut itembox_update = messages::InterfaceItemBoxUpdate::default();
             crafting_table.build_input_interface(&mut itembox_update);
             crafting_table.build_output_interface(&recipes, &mut itembox_update);
-            net.send_one(*connection, itembox_update);
+            net.send_one(player_entity, itembox_update);
 
             net.send_one(
-                *connection,
+                player_entity,
                 messages::InterfaceVisibilityUpdate {
                     interface_path: "crafting_table".to_owned(),
                     visible: true,
