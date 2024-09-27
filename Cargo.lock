@@ -1429,7 +1429,9 @@ dependencies = [
 
 [[package]]
 name = "fmc"
-version = "0.0.1"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9048f71d7de8c9b5807642c8c24d0f38f91eebb9caeec9ca263b91586bf6a2d"
 dependencies = [
  "bevy",
  "bincode",
@@ -1480,7 +1482,9 @@ dependencies = [
 
 [[package]]
 name = "fmc_protocol"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "709079e5dc9e3af9ce6dcadff93d71c394d98b5d527078bc3771a33c81cc1282"
 dependencies = [
  "bevy",
  "fmc_protocol_derive",
@@ -1490,6 +1494,8 @@ dependencies = [
 [[package]]
 name = "fmc_protocol_derive"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e0962e0b786bfc6618c56e46289870aa9e3fa9e6a27935342c98f85b3968ce"
 dependencies = [
  "quote",
  "syn 1.0.109",
