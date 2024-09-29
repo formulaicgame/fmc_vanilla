@@ -5,9 +5,9 @@ use fmc::{
     networking::{NetworkMessage, Server},
     players::Player,
     prelude::*,
+    protocol::messages,
 };
 
-use fmc_protocol::messages;
 use serde::{Deserialize, Serialize};
 
 use super::RespawnEvent;

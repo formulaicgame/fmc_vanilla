@@ -1,5 +1,4 @@
-use fmc::{networking::Server, prelude::*};
-use fmc_protocol::messages;
+use fmc::{networking::Server, prelude::*, protocol::messages};
 
 pub struct SkyPlugin;
 impl Plugin for SkyPlugin {

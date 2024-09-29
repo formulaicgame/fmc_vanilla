@@ -8,10 +8,10 @@ use fmc::{
     physics::shapes::Aabb,
     players::{Camera, Player},
     prelude::*,
+    protocol::messages,
     utils,
     world::{chunk::Chunk, WorldMap},
 };
-use fmc_protocol::messages;
 use serde::{Deserialize, Serialize};
 
 use crate::{items::crafting::CraftingGrid, world::WorldProperties};

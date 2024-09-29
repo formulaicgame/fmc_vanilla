@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use fmc_protocol::messages;
-
 use fmc::{
     bevy::math::DVec3,
     blocks::{BlockFace, BlockId, BlockPosition, BlockRotation, BlockState, Blocks, Friction},
@@ -11,6 +9,7 @@ use fmc::{
     physics::shapes::Aabb,
     players::{Camera, Player},
     prelude::*,
+    protocol::messages,
     utils,
     world::{chunk::Chunk, BlockUpdate, WorldMap},
 };

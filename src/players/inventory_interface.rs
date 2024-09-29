@@ -7,9 +7,8 @@ use fmc::{
     networking::{NetworkMessage, Server},
     players::Player,
     prelude::*,
+    protocol::messages,
 };
-
-use fmc_protocol::messages;
 
 use crate::{
     items::crafting::{CraftingGrid, Recipes},

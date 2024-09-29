@@ -3,7 +3,7 @@ use fmc::prelude::*;
 pub struct ExtractBundledAssetsPlugin;
 impl Plugin for ExtractBundledAssetsPlugin {
     fn build(&self, _app: &mut App) {
-        // The server's necessary assets are included at compile time, two birds one stone.
+        // The server's assets are included at compile time, two birds one stone.
         // 1. The assets are always available without having to fetch them from the web.
         // TODO: Mods ruin this
         // 2. We do not need to have a list of necessary blocks/items/models included in the
